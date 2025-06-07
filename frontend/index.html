@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACCIOMAI AI Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9Oer+R4xid/aVpghP9n33uP+8Mv+yJ3YfK8s1+5aV+c+i" crossorigin="anonymous">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 700px;
+            margin-top: 50px;
+            padding: 30px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .form-label {
+            font-weight: bold;
+            color: #343a40;
+        }
+        #response-card {
+            margin-top: 30px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #fefefe;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+        #response-text {
+            font-size: 1.1em;
+            color: #28a745; /* Success color for response */
+            font-weight: 500;
+        }
+        .error-message {
+            color: #dc3545; /* Danger color for errors */
+            font-weight: bold;
+        }
+        .spinner-border {
+            width: 1.5rem;
+            height: 1.5rem;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1 class="text-center mb-4 text-primary">ACCIOMAI AI Assistant</h1>
+        <p class="text-center text-muted mb-5">Ask me about TVs in Nairobi, opening a repair shop, or 'mtumba'!</p>
+
+        <form id="searchForm">
+            <div class="mb-3">
+                <label for="queryInput" class="form-label">Your Query:</label>
+                <input type="text" class="form-control form-control-lg" id="queryInput" placeholder="e.g., where can I find TVs in Nairobi?" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg w-100" id="submitBtn">
+                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true" id="loadingSpinner"></span>
+                <span id="btnText">Search</span>
+            </button>
+        </form>
+
+        <div id="response-card" class="card p-4">
+            <h5 class="card-title text-secondary">Assistant's Response:</h5>
+            <div class="card-body">
+                <p id="response-text" class="mb-0 text-muted">
+                    <small>Type a query above and click "Search" to get a response.</small>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+    <script>
+        // !! IMPORTANT: Replace this with your actual Render backend URL !!
+        const BACKEND_URL = 'https://said-accmio.onrender.com/search'; // <--- YOUR RENDER URL HERE!
+
+        const searchForm = document.getElementById('searchForm');
+        const queryInput = document.getElementById('queryInput');
+        const responseText = document.getElementById('response-text');
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const btnText = document.getElementById('btnText');
+
+        searchForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Prevent default form submission (page reload)
+
+            const query = queryInput.value.trim();
+            if (!query) {
+                responseText.textContent = "Please enter a query.";
+                responseText.classList.add('error-message');
+                return;
+            }
+
+            // Reset UI for new request
+            responseText.textContent = 'Thinking...';
+            responseText.classList.remove('error-message', 'text-muted');
+            responseText.classList.add('text-primary'); // Indicate thinking state
+
+            // Show loading spinner and disable button
+            submitBtn.disabled = true;
+            loadingSpinner.classList.remove('d-none');
+            btnText.textContent = 'Searching...';
+
+            try {
+                const response = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+
+                if (!response.ok) {
+                    // Handle HTTP errors
+                    const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+                    throw new Error(`Server responded with ${response.status}: ${errorData.message || response.statusText}`);
+                }
+
+                const data = await response.json();
+                responseText.textContent = data.response;
+                responseText.classList.remove('error-message', 'text-primary');
+                responseText.classList.add('text-success'); // Indicate success
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                responseText.textContent = `Error: ${error.message || 'Could not connect to the backend.'}`;
+                responseText.classList.add('error-message');
+                responseText.classList.remove('text-primary', 'text-success'); // Ensure error style
+            } finally {
+                // Hide loading spinner and enable button
+                submitBtn.disabled = false;
+                loadingSpinner.classList.add('d-none');
+                btnText.textContent = 'Search';
+            }
+        });
+    </script>
+</body>
+</html>
