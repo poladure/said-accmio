@@ -1,60 +1,43 @@
-
 const express = require('express');
-
 const cors = require('cors');
-
 const bodyParser = require('body-parser');
 
-
-
 const app = express();
-
-const port = process.env.PORT || 3000; // ✅ Important for Render
-
-
+const PORT = process.env.PORT || 10000;
 
 app.use(cors());
-
 app.use(bodyParser.json());
 
-
-
 app.post('/search', (req, res) => {
+  const searchQuery = (req.body?.search || '').toLowerCase();
 
-  const query = req.body.query.toLowerCase();
+  if (!searchQuery) {
+    return res.status(400).json({ response: "Search term is missing." });
+  }
 
-  let response;
+  // Simulated AI response (for now)
+  const fakeResults = [
+    { name: 'Smartphone X', price: '$199', source: 'Jumia' },
+    { name: 'Shoes Pro', price: '$49', source: 'Kilimall' },
+  ];
 
+  const results = fakeResults.filter(item =>
+    item.name.toLowerCase().includes(searchQuery)
+  );
 
+  if (results.length === 0) {
+    return res.json({
+      response: "Sorry, I couldn’t find matching products. Try a different keyword."
+    });
+  }
 
-  if (query.includes("tv") && query.includes("nairobi")) {
-
-    response = "You can find TVs on Jiji.co.ke, Kilimall, or local Nairobi shops.";
-
-  } else if (query.includes("repair shop")) {
-
-    response = "To open a repair shop in Eastleigh, you need tools, licensing, and permits.";
-
-  } else if (query.includes("mtumba") || query.includes("kiswahili")) {
-
-    response = "Unaweza kupata bidhaa za mtumba Gikomba au Jiji Kenya.";
-
-  } else {
-
-    response = "Sorry, I'm still learning. Please try another request.";
-
-  }
-
-
-
-  res.json({ response });
-
+  return res.json({ results });
 });
 
+app.get('/', (req, res) => {
+  res.send('🚀 ACCIOM AI backend is running!');
+});
 
-
-app.listen(port, () => {
-
-  console.log(`✅ ACCIOMAI backend running on port ${port}`);
-
+app.listen(PORT, () => {
+  console.log(`✅ Server is running on port ${PORT}`);
 });
