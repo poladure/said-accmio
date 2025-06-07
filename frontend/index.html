@@ -27,7 +27,7 @@
             border: 1px solid #e0e0e0;
             border-radius: 8px;
             background-color: #fefefe;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 6px rgba[0, 0, 0, 0.05];
         }
         #response-text {
             font-size: 1.1em;
@@ -43,18 +43,28 @@
             height: 1.5rem;
             margin-right: 10px;
         }
+        .result-item {
+            border-bottom: 1px dashed #eee;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        .result-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
         <h1 class="text-center mb-4 text-primary">ACCIOMAI AI Assistant</h1>
-        <p class="text-center text-muted mb-5">Ask me about TVs in Nairobi, opening a repair shop, or 'mtumba'!</p>
+        <p class="text-center text-muted mb-5">Search for products like 'smartphone' or 'shoes'!</p>
 
         <form id="searchForm">
             <div class="mb-3">
                 <label for="queryInput" class="form-label">Your Query:</label>
-                <input type="text" class="form-control form-control-lg" id="queryInput" placeholder="e.g., where can I find TVs in Nairobi?" required>
+                <input type="text" class="form-control form-control-lg" id="queryInput" placeholder="e.g., smartphone" required>
             </div>
             <button type="submit" class="btn btn-primary btn-lg w-100" id="submitBtn">
                 <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true" id="loadingSpinner"></span>
@@ -64,10 +74,11 @@
 
         <div id="response-card" class="card p-4">
             <h5 class="card-title text-secondary">Assistant's Response:</h5>
-            <div class="card-body">
+            <div class="card-body" id="response-body">
                 <p id="response-text" class="mb-0 text-muted">
                     <small>Type a query above and click "Search" to get a response.</small>
                 </p>
+                <div id="results-container"></div>
             </div>
         </div>
     </div>
@@ -81,6 +92,7 @@
         const searchForm = document.getElementById('searchForm');
         const queryInput = document.getElementById('queryInput');
         const responseText = document.getElementById('response-text');
+        const resultsContainer = document.getElementById('results-container'); // New
         const submitBtn = document.getElementById('submitBtn');
         const loadingSpinner = document.getElementById('loadingSpinner');
         const btnText = document.getElementById('btnText');
@@ -92,13 +104,15 @@
             if (!query) {
                 responseText.textContent = "Please enter a query.";
                 responseText.classList.add('error-message');
+                resultsContainer.innerHTML = ''; // Clear previous results
                 return;
             }
 
             // Reset UI for new request
             responseText.textContent = 'Thinking...';
-            responseText.classList.remove('error-message', 'text-muted');
+            responseText.classList.remove('error-message', 'text-muted', 'text-success');
             responseText.classList.add('text-primary'); // Indicate thinking state
+            resultsContainer.innerHTML = ''; // Clear previous results
 
             // Show loading spinner and disable button
             submitBtn.disabled = true;
@@ -111,24 +125,53 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ query: query })
+                    body: JSON.stringify({ search: query }) // CHANGED: send 'search' instead of 'query'
                 });
 
                 if (!response.ok) {
-                    // Handle HTTP errors
-                    const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-                    throw new Error(`Server responded with ${response.status}: ${errorData.message || response.statusText}`);
+                    // Handle HTTP errors (e.g., 400 Bad Request from your server)
+                    const errorData = await response.json().catch(() => ({ response: 'Unknown error' }));
+                    throw new Error(errorData.response || `Server responded with ${response.status}: ${response.statusText}`);
                 }
 
                 const data = await response.json();
-                responseText.textContent = data.response;
-                responseText.classList.remove('error-message', 'text-primary');
-                responseText.classList.add('text-success'); // Indicate success
+
+                if (data.results) {
+                    // If results array is present
+                    responseText.textContent = 'Found the following products:';
+                    responseText.classList.remove('error-message', 'text-muted', 'text-primary');
+                    responseText.classList.add('text-success');
+
+                    resultsContainer.innerHTML = data.results.map(item => `
+                        <div class="result-item py-2">
+                            <strong>${item.name}</strong><br>
+                            Price: ${item.price}<br>
+                            Source: ${item.source}
+                        </div>
+                    `).join('');
+                } else if (data.response) {
+                    // If a general response string is present (e.g., "Search term missing" or "Sorry, I couldn't find...")
+                    responseText.textContent = data.response;
+                    responseText.classList.remove('text-primary', 'text-success');
+                    if (response.status === 400) { // Specific styling for 400 errors from your backend
+                        responseText.classList.add('error-message');
+                    } else {
+                        responseText.classList.add('text-muted'); // Default for no-match messages
+                    }
+                    resultsContainer.innerHTML = ''; // Ensure no old results are shown
+                } else {
+                    // Fallback for unexpected response structure
+                    responseText.textContent = 'Received an unexpected response from the server.';
+                    responseText.classList.add('error-message');
+                    resultsContainer.innerHTML = '';
+                }
+
             } catch (error) {
                 console.error('Error fetching data:', error);
                 responseText.textContent = `Error: ${error.message || 'Could not connect to the backend.'}`;
                 responseText.classList.add('error-message');
-                responseText.classList.remove('text-primary', 'text-success'); // Ensure error style
+                responseText.classList.remove('text-primary', 'text-success', 'text-muted');
+                resultsContainer.innerHTML = '';
             } finally {
                 // Hide loading spinner and enable button
                 submitBtn.disabled = false;
